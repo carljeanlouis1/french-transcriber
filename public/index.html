@@ -142,6 +142,12 @@
       max-height: 60vh;
       overflow-y: auto;
       user-select: text;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .transcript-box:focus {
+      border-color: rgba(102,126,234,0.5);
     }
 
     .transcript-box::-webkit-scrollbar { width: 6px; }
@@ -235,7 +241,7 @@
         <h2>📝 Transcription</h2>
         <button class="copy-btn" id="copyBtn" onclick="copyText()">📋 Copier</button>
       </div>
-      <div class="transcript-box" id="transcript"></div>
+      <div class="transcript-box" id="transcript" contenteditable="true" spellcheck="true"></div>
     </div>
   </div>
 
