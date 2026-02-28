@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transcription Française</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #0a0a1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .header {
+      text-align: center;
+      padding: 2rem 1rem 1rem;
+    }
+
+    .header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.3rem;
+    }
+
+    .header p {
+      color: #888;
+      font-size: 0.95rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 700px;
+      padding: 1rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .record-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      padding: 2rem;
+      background: rgba(255,255,255,0.03);
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .mic-btn {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      font-size: 2.5rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .mic-btn:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(102,126,234,0.4); }
+    .mic-btn.recording { background: linear-gradient(135deg, #e74c3c, #c0392b); animation: pulse 1.5s ease-in-out infinite; }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.4); }
+      50% { box-shadow: 0 0 0 20px rgba(231,76,60,0); }
+    }
+
+    .status {
+      font-size: 0.9rem;
+      color: #888;
+      min-height: 1.4rem;
+    }
+
+    .timer {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 1.3rem;
+      color: #667eea;
+      display: none;
+    }
+
+    .timer.active { display: block; }
+
+    .result-section {
+      display: none;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .result-section.visible { display: flex; }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .result-header h2 {
+      font-size: 1.1rem;
+      color: #ccc;
+    }
+
+    .copy-btn {
+      padding: 0.5rem 1rem;
+      background: rgba(102,126,234,0.15);
+      border: 1px solid rgba(102,126,234,0.3);
+      color: #667eea;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+
+    .copy-btn:hover { background: rgba(102,126,234,0.25); }
+    .copy-btn.copied { background: rgba(46,204,113,0.15); border-color: rgba(46,204,113,0.3); color: #2ecc71; }
+
+    .transcript-box {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 1.25rem;
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: #e0e0e0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-height: 60vh;
+      overflow-y: auto;
+      user-select: text;
+    }
+
+    .transcript-box::-webkit-scrollbar { width: 6px; }
+    .transcript-box::-webkit-scrollbar-track { background: transparent; }
+    .transcript-box::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+    .processing {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      padding: 2rem;
+      color: #888;
+    }
+
+    .processing.visible { display: flex; }
+
+    .spinner {
+      width: 24px; height: 24px;
+      border: 3px solid rgba(102,126,234,0.2);
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error {
+      display: none;
+      padding: 1rem;
+      background: rgba(231,76,60,0.1);
+      border: 1px solid rgba(231,76,60,0.2);
+      border-radius: 10px;
+      color: #e74c3c;
+      font-size: 0.9rem;
+    }
+
+    .error.visible { display: block; }
+
+    .lang-toggle {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+
+    .lang-btn {
+      padding: 0.4rem 1rem;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #888;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+
+    .lang-btn.active {
+      background: rgba(102,126,234,0.15);
+      border-color: rgba(102,126,234,0.3);
+      color: #667eea;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎙️ Transcription Française</h1>
+    <p>Parlez et votre discours sera transcrit</p>
+  </div>
+
+  <div class="container">
+    <div class="record-section">
+      <div class="lang-toggle">
+        <button class="lang-btn active" data-lang="fr" onclick="setLang('fr')">🇫🇷 Français</button>
+        <button class="lang-btn" data-lang="en" onclick="setLang('en')">🇺🇸 English</button>
+        <button class="lang-btn" data-lang="ht" onclick="setLang('ht')">🇭🇹 Kreyòl</button>
+      </div>
+      <button class="mic-btn" id="micBtn" onclick="toggleRecording()">🎤</button>
+      <div class="timer" id="timer">00:00</div>
+      <div class="status" id="status">Appuyez pour commencer</div>
+    </div>
+
+    <div class="processing" id="processing">
+      <div class="spinner"></div>
+      <span>Transcription en cours...</span>
+    </div>
+
+    <div class="error" id="error"></div>
+
+    <div class="result-section" id="resultSection">
+      <div class="result-header">
+        <h2>📝 Transcription</h2>
+        <button class="copy-btn" id="copyBtn" onclick="copyText()">📋 Copier</button>
+      </div>
+      <div class="transcript-box" id="transcript"></div>
+    </div>
+  </div>
+
+  <script>
+    let mediaRecorder = null;
+    let chunks = [];
+    let recording = false;
+    let timerInterval = null;
+    let seconds = 0;
+    let selectedLang = 'fr';
+
+    function setLang(lang) {
+      selectedLang = lang;
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+    }
+
+    function formatTime(s) {
+      const m = Math.floor(s / 60).toString().padStart(2, '0');
+      const sec = (s % 60).toString().padStart(2, '0');
+      return `${m}:${sec}`;
+    }
+
+    async function toggleRecording() {
+      if (recording) {
+        stopRecording();
+      } else {
+        await startRecording();
+      }
+    }
+
+    async function startRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: { channelCount: 1, sampleRate: 16000 } 
+        });
+        
+        // Use webm/opus which Whisper handles well
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
+          ? 'audio/webm;codecs=opus' 
+          : 'audio/webm';
+        
+        mediaRecorder = new MediaRecorder(stream, { mimeType });
+        chunks = [];
+
+        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+          stream.getTracks().forEach(t => t.stop());
+          const blob = new Blob(chunks, { type: mimeType });
+          transcribe(blob);
+        };
+
+        mediaRecorder.start(1000); // collect in 1s chunks for long recordings
+        recording = true;
+        seconds = 0;
+
+        document.getElementById('micBtn').classList.add('recording');
+        document.getElementById('micBtn').textContent = '⏹️';
+        document.getElementById('timer').classList.add('active');
+        document.getElementById('status').textContent = 'Enregistrement en cours...';
+        document.getElementById('error').classList.remove('visible');
+
+        timerInterval = setInterval(() => {
+          seconds++;
+          document.getElementById('timer').textContent = formatTime(seconds);
+        }, 1000);
+
+      } catch (err) {
+        showError("Impossible d'accéder au microphone. Vérifiez les permissions.");
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      recording = false;
+      clearInterval(timerInterval);
+      document.getElementById('micBtn').classList.remove('recording');
+      document.getElementById('micBtn').textContent = '🎤';
+      document.getElementById('timer').classList.remove('active');
+      document.getElementById('status').textContent = 'Appuyez pour commencer';
+    }
+
+    async function transcribe(blob) {
+      document.getElementById('processing').classList.add('visible');
+      document.getElementById('resultSection').classList.remove('visible');
+
+      try {
+        const formData = new FormData();
+        formData.append('file', blob, 'recording.webm');
+        formData.append('language', selectedLang === 'ht' ? 'ht' : selectedLang);
+
+        const resp = await fetch('/api/transcribe', { method: 'POST', body: formData });
+        
+        if (!resp.ok) {
+          const err = await resp.text();
+          throw new Error(err || 'Transcription failed');
+        }
+
+        const data = await resp.json();
+        document.getElementById('transcript').textContent = data.text;
+        document.getElementById('resultSection').classList.add('visible');
+        document.getElementById('copyBtn').textContent = '📋 Copier';
+        document.getElementById('copyBtn').classList.remove('copied');
+
+      } catch (err) {
+        showError(`Erreur: ${err.message}`);
+      } finally {
+        document.getElementById('processing').classList.remove('visible');
+      }
+    }
+
+    async function copyText() {
+      const text = document.getElementById('transcript').textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        const btn = document.getElementById('copyBtn');
+        btn.textContent = '✅ Copié!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = '📋 Copier'; btn.classList.remove('copied'); }, 2000);
+      } catch {
+        // Fallback
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error');
+      el.textContent = msg;
+      el.classList.add('visible');
+    }
+  </script>
+</body>
+</html>

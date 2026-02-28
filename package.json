@@ -1,0 +1,12 @@
+{
+  "name": "french-transcriber",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler pages dev public --port 8788",
+    "deploy": "wrangler pages deploy public --project-name french-transcriber"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
