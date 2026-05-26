@@ -42,8 +42,23 @@ assert(
 );
 
 assert(
-  /whisperForm\.append\(["']file["']\s*,\s*file\s*,\s*(fileName|safeFileName)/.test(api),
-  'API must forward a form-derived filename to Whisper'
+  /api\.deepgram\.com\/v1\/listen/.test(api),
+  'API must call Deepgram prerecorded transcription endpoint'
 );
 
-console.log('Audio upload guard passed');
+assert(
+  /model:\s*["']nova-3["']/.test(api) || /model=nova-3/.test(api),
+  'API must use Deepgram Nova-3 for supported languages'
+);
+
+assert(
+  /env\.DEEPGRAM_API_KEY/.test(api),
+  'API must authenticate Deepgram with DEEPGRAM_API_KEY'
+);
+
+assert(
+  /transcribeWithOpenAI/.test(api),
+  'API must keep OpenAI fallback for unsupported languages or missing Deepgram key'
+);
+
+console.log('Audio upload + Deepgram guard passed');
