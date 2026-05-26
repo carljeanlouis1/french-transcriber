@@ -76,6 +76,68 @@
     .mic-btn:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(102,126,234,0.4); }
     .mic-btn.recording { background: linear-gradient(135deg, #e74c3c, #c0392b); animation: pulse 1.5s ease-in-out infinite; }
 
+    .divider {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: #666;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(255,255,255,0.08);
+    }
+
+    .upload-section {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .upload-label {
+      width: 100%;
+      padding: 1rem;
+      border: 1px dashed rgba(102,126,234,0.45);
+      background: rgba(102,126,234,0.08);
+      color: #b8c1ff;
+      border-radius: 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .upload-label:hover {
+      background: rgba(102,126,234,0.14);
+      border-color: rgba(102,126,234,0.7);
+    }
+
+    .upload-hint {
+      color: #777;
+      font-size: 0.8rem;
+      text-align: center;
+    }
+
+    .file-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     @keyframes pulse {
       0%, 100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.4); }
       50% { box-shadow: 0 0 0 20px rgba(231,76,60,0); }
@@ -227,6 +289,14 @@
       <button class="mic-btn" id="micBtn" onclick="toggleRecording()">🎤</button>
       <div class="timer" id="timer">00:00</div>
       <div class="status" id="status">Appuyez pour commencer</div>
+
+      <div class="divider">ou</div>
+
+      <div class="upload-section">
+        <label class="upload-label" for="audioFile">📁 Importer un fichier audio</label>
+        <input class="file-input" id="audioFile" type="file" accept="audio/*" onchange="handleFileUpload(event)">
+        <div class="upload-hint">MP3, M4A, WAV, WebM, MP4 audio — jusqu'à 25 MB</div>
+      </div>
     </div>
 
     <div class="processing" id="processing">
@@ -290,7 +360,7 @@
         mediaRecorder.onstop = () => {
           stream.getTracks().forEach(t => t.stop());
           const blob = new Blob(chunks, { type: mimeType });
-          transcribe(blob);
+          transcribe(blob, 'recording.webm');
         };
 
         mediaRecorder.start(1000); // collect in 1s chunks for long recordings
@@ -325,13 +395,37 @@
       document.getElementById('status').textContent = 'Appuyez pour commencer';
     }
 
-    async function transcribe(blob) {
+    async function handleFileUpload(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('audio/')) {
+        showError('Veuillez choisir un fichier audio.');
+        event.target.value = '';
+        return;
+      }
+
+      const maxBytes = 25 * 1024 * 1024;
+      if (file.size > maxBytes) {
+        showError('Le fichier est trop volumineux. La limite est de 25 MB.');
+        event.target.value = '';
+        return;
+      }
+
+      document.getElementById('status').textContent = `Fichier sélectionné: ${file.name}`;
+      await transcribe(file, file.name);
+      event.target.value = '';
+    }
+
+    async function transcribe(blob, fileName = 'recording.webm') {
       document.getElementById('processing').classList.add('visible');
       document.getElementById('resultSection').classList.remove('visible');
+      document.getElementById('error').classList.remove('visible');
 
       try {
         const formData = new FormData();
-        formData.append('file', blob, 'recording.webm');
+        formData.append('file', blob, fileName);
+        formData.append('fileName', fileName);
         formData.append('language', selectedLang === 'ht' ? 'ht' : selectedLang);
 
         const resp = await fetch('/api/transcribe', { method: 'POST', body: formData });

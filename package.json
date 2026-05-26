@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "test": "node scripts/guard-audio-upload.js",
     "dev": "wrangler pages dev public --port 8788",
     "deploy": "wrangler pages deploy public --project-name french-transcriber"
   },

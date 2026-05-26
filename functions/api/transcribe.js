@@ -4,15 +4,18 @@ export async function onRequestPost(context) {
   try {
     const formData = await request.formData();
     const file = formData.get('file');
+    const submittedFileName = formData.get('fileName');
     const language = formData.get('language') || 'fr';
 
     if (!file) {
       return new Response('No audio file provided', { status: 400 });
     }
 
+    const fileName = sanitizeAudioFileName(submittedFileName || file.name || 'recording.webm');
+
     // Forward to OpenAI Whisper API
     const whisperForm = new FormData();
-    whisperForm.append('file', file, 'recording.webm');
+    whisperForm.append('file', file, fileName);
     whisperForm.append('model', 'whisper-1');
     whisperForm.append('language', language);
     whisperForm.append('response_format', 'json');
@@ -41,4 +44,14 @@ export async function onRequestPost(context) {
     console.error('Transcribe error:', err);
     return new Response(`Server error: ${err.message}`, { status: 500 });
   }
+}
+
+function sanitizeAudioFileName(fileName) {
+  const safeName = String(fileName)
+    .split(/[\\/]/)
+    .pop()
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .slice(0, 120);
+
+  return safeName || 'audio-upload.webm';
 }

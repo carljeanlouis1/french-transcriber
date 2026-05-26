@@ -1,0 +1,49 @@
+#!/usr/bin/env node
+const fs = require('fs');
+const assert = require('assert');
+
+const html = fs.readFileSync('public/index.html', 'utf8');
+const api = fs.readFileSync('functions/api/transcribe.js', 'utf8');
+
+assert(
+  /<input[^>]+type=["']file["'][^>]+id=["']audioFile["']/i.test(html) ||
+    /<input[^>]+id=["']audioFile["'][^>]+type=["']file["']/i.test(html),
+  'UI must include an audio file input with id="audioFile"'
+);
+
+assert(
+  /accept=["'][^"']*audio\/\*/i.test(html),
+  'Audio file input must restrict picker to audio files with accept="audio/*"'
+);
+
+assert(
+  /function\s+handleFileUpload\s*\(/.test(html) || /const\s+handleFileUpload\s*=/.test(html),
+  'UI must define handleFileUpload() for uploaded audio files'
+);
+
+assert(
+  /addEventListener\(["']change["']\s*,\s*handleFileUpload\)/.test(html) || /onchange=["']handleFileUpload\(/.test(html),
+  'Audio file input must call handleFileUpload when a file is selected'
+);
+
+assert(
+  /transcribe\([^,]+,\s*[^)]*\.name/.test(html),
+  'Uploaded files must pass the original filename into transcribe()'
+);
+
+assert(
+  /formData\.append\(["']file["']\s*,\s*blob\s*,\s*fileName/.test(html),
+  'transcribe() must append fileName, not always recording.webm'
+);
+
+assert(
+  /formData\.get\(["']fileName["']\)/.test(api),
+  'API must read fileName from form data'
+);
+
+assert(
+  /whisperForm\.append\(["']file["']\s*,\s*file\s*,\s*(fileName|safeFileName)/.test(api),
+  'API must forward a form-derived filename to Whisper'
+);
+
+console.log('Audio upload guard passed');
