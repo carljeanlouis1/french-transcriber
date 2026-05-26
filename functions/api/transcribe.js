@@ -6,6 +6,7 @@ export async function onRequestPost(context) {
     const file = formData.get('file');
     const submittedFileName = formData.get('fileName');
     const language = formData.get('language') || 'fr';
+    const outputMode = normalizeOutputMode(formData.get('outputMode'));
 
     if (!file) {
       return new Response('No audio file provided', { status: 400 });
@@ -17,8 +18,16 @@ export async function onRequestPost(context) {
       ? await transcribeWithDeepgram(file, fileName, language, env)
       : await transcribeWithOpenAI(file, fileName, language, env);
 
+    const originalText = result.text || '';
+    const englishText = await getEnglishText(originalText, language, outputMode, env);
+    const text = formatOutputText(originalText, englishText, outputMode, language);
+
     return jsonResponse({
-      text: result.text,
+      text,
+      originalText,
+      englishText,
+      sourceLanguage: language,
+      outputMode,
       provider,
       model: result.model,
     });
@@ -91,6 +100,75 @@ async function transcribeWithOpenAI(file, fileName, language, env) {
 
   const data = await resp.json();
   return { text: data.text || '', model: 'openai-whisper-1' };
+}
+
+async function getEnglishText(originalText, language, outputMode, env) {
+  if (!originalText || outputMode === 'original') {
+    return '';
+  }
+
+  if (language === 'en') {
+    return originalText;
+  }
+
+  return translateToEnglish(originalText, language, env);
+}
+
+async function translateToEnglish(text, sourceLanguage, env) {
+  if (!env.OPENAI_API_KEY) {
+    throw new Error('English translation requested but OPENAI_API_KEY is not configured');
+  }
+
+  const languageNames = {
+    fr: 'French',
+    ht: 'Haitian Creole',
+    en: 'English',
+  };
+
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${env.OPENAI_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      temperature: 0,
+      messages: [
+        {
+          role: 'system',
+          content: `Translate the user's ${languageNames[sourceLanguage] || sourceLanguage} transcript into natural English. Preserve meaning, names, numbers, paragraph breaks, and speaker wording. Do not summarize, explain, or add commentary.`,
+        },
+        { role: 'user', content: text },
+      ],
+    }),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    console.error('OpenAI translation error:', errText);
+    throw new Error(`OpenAI translation error: ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  return data?.choices?.[0]?.message?.content?.trim() || '';
+}
+
+function formatOutputText(originalText, englishText, outputMode, language) {
+  if (outputMode === 'english') {
+    return englishText || originalText;
+  }
+
+  if (outputMode === 'both') {
+    const originalLabel = language === 'fr' ? 'Transcription française' : 'Original transcript';
+    return `${originalLabel}\n\n${originalText}\n\nEnglish translation\n\n${englishText || originalText}`;
+  }
+
+  return originalText;
+}
+
+function normalizeOutputMode(outputMode) {
+  return ['original', 'english', 'both'].includes(outputMode) ? outputMode : 'original';
 }
 
 function jsonResponse(payload) {
