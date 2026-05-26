@@ -293,6 +293,12 @@
       flex-wrap: wrap;
       justify-content: flex-end;
     }
+
+    .result-meta {
+      color: #888;
+      font-size: 0.82rem;
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
@@ -315,9 +321,9 @@
       <div class="control-group">
         <div class="control-label">Texte à afficher</div>
         <div class="output-toggle">
-          <button class="output-btn active" id="outputOriginal" data-output="original" onclick="setOutputMode('original')">Original / Français</button>
-          <button class="output-btn" id="outputEnglish" data-output="english" onclick="setOutputMode('english')">English</button>
-          <button class="output-btn" id="outputBoth" data-output="both" onclick="setOutputMode('both')">Les deux</button>
+          <button class="output-btn active" id="outputOriginal" data-output="original" onclick="setOutputMode('original')">Français seulement</button>
+          <button class="output-btn" id="outputEnglish" data-output="english" onclick="setOutputMode('english')">Traduction anglaise</button>
+          <button class="output-btn" id="outputBoth" data-output="both" onclick="setOutputMode('both')">Français + anglais</button>
         </div>
       </div>
       <button class="mic-btn" id="micBtn" onclick="toggleRecording()">🎤</button>
@@ -348,6 +354,7 @@
           <button class="copy-btn" id="downloadBtn" onclick="downloadTranscript()">⬇️ Télécharger</button>
         </div>
       </div>
+      <div class="result-meta" id="resultMeta"></div>
       <div class="transcript-box" id="transcript" contenteditable="true" spellcheck="true"></div>
     </div>
   </div>
@@ -468,10 +475,14 @@
 
       try {
         const formData = new FormData();
+        const activeLang = document.querySelector('.lang-btn.active')?.dataset.lang || selectedLang || 'fr';
+        const activeOutputMode = document.querySelector('.output-btn.active')?.dataset.output || selectedOutputMode || 'original';
+        selectedLang = activeLang;
+        selectedOutputMode = activeOutputMode;
         formData.append('file', blob, fileName);
         formData.append('fileName', fileName);
-        formData.append('language', selectedLang === 'ht' ? 'ht' : selectedLang);
-        formData.append('outputMode', selectedOutputMode);
+        formData.append('language', activeLang === 'ht' ? 'ht' : activeLang);
+        formData.append('outputMode', activeOutputMode);
 
         const resp = await fetch('/api/transcribe', { method: 'POST', body: formData });
         
@@ -483,6 +494,7 @@
         const data = await resp.json();
         currentTranscriptText = data.text || data.originalText || '';
         document.getElementById('transcript').textContent = currentTranscriptText;
+        document.getElementById('resultMeta').textContent = buildResultMeta(data);
         document.getElementById('resultSection').classList.add('visible');
         document.getElementById('copyBtn').textContent = '📋 Copier';
         document.getElementById('copyBtn').classList.remove('copied');
@@ -492,6 +504,19 @@
       } finally {
         document.getElementById('processing').classList.remove('visible');
       }
+    }
+
+    function buildResultMeta(data) {
+      const languageLabels = { fr: 'Français', en: 'English', ht: 'Kreyòl' };
+      const outputLabels = {
+        original: data.sourceLanguage === 'fr' ? 'Français seulement — aucune traduction' : 'Texte original — aucune traduction',
+        english: 'Traduction anglaise',
+        both: 'Original + traduction anglaise',
+      };
+      const audioLabel = languageLabels[data.sourceLanguage] || data.sourceLanguage || selectedLang;
+      const outputLabel = outputLabels[data.outputMode] || data.outputMode || selectedOutputMode;
+      const modelLabel = data.model ? ` • ${data.model}` : '';
+      return `Audio: ${audioLabel} • Affichage: ${outputLabel}${modelLabel}`;
     }
 
     async function copyText() {

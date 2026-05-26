@@ -82,8 +82,14 @@ assert(
 );
 
 assert(
-  /formData\.append\(["']outputMode["']\s*,\s*selectedOutputMode\)/.test(html),
-  'UI must send selectedOutputMode to the API'
+  /const\s+activeOutputMode\s*=\s*document\.querySelector\(["']\.output-btn\.active["']\)/.test(html) &&
+    /formData\.append\(["']outputMode["']\s*,\s*activeOutputMode\)/.test(html),
+  'UI must read the active output button at submit time and send it to the API'
+);
+
+assert(
+  /id=["']resultMeta["']/.test(html) && /function\s+buildResultMeta\s*\(/.test(html),
+  'UI must show the actual audio language/output mode returned by the API'
 );
 
 assert(
